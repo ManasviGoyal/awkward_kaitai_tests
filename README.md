@@ -11,6 +11,6 @@ Steps for reproducing the environment:
 
 4. Convert the KSY specs into C++ code in the awkward_kaitai_tests repository: `./kaitai-struct-compiler -t awkward --outdir src-animal schemas/animal.ksy`
 
-5. Then compile it: `g++ -DKS_STR_ENCODING_NONE -Ikaitai_struct_cpp_stl_runtime -I. kaitai_struct_awkward_runtime/kaitai/kaitaistream.cpp src-animal/animal.cpp test-animal.cpp -o test-animal`
+5. Then compile it: `g++ -DKS_STR_ENCODING_NONE -Ikaitai_struct_awkward_runtime -I. kaitai_struct_awkward_runtime/kaitai/kaitaistream.cpp src-animal/animal.cpp test-animal.cpp -o test-animal`
 
 6. Run: `./test-animal`
