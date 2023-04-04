@@ -2,3 +2,6 @@
 	path = kaitai_struct_awkward_runtime
 	url = https://github.com/ManasviGoyal/kaitai_struct_awkward_runtime.git
 	branch = ManasviGoyal/awkward_target
+[submodule "kaitai_struct_compiler"]
+	path = kaitai_struct_compiler
+	url = https://github.com/ManasviGoyal/kaitai_struct_compiler.git
