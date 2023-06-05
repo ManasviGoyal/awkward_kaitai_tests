@@ -1,7 +1,16 @@
 build/*
+
 src-animal
 test-animal
+
 src-scdms
 test-scdms
+
 src-fake
 test-fake
+
+src-numpy
+test-numpy
+
+src-array_of_lists_of_floats
+test-array_of_lists_of_floats
