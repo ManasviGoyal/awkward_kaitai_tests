@@ -1,6 +1,6 @@
 meta:
-  id: array_of_lists_of_floats
-  file-extension: array_of_lists_of_floats
+  id: lists
+  file-extension: lists
   endian: le
   
 seq:

@@ -12,5 +12,5 @@ test-fake
 src-numpy
 test-numpy
 
-src-array_of_lists_of_floats
-test-array_of_lists_of_floats
+src-lists
+test-lists
