@@ -1,52 +1,8 @@
 meta:
-  id: scdms
-  #file-extension: NOTE - The scdms format is encapsulated
-  # within a midas file so it won't have its own extension
+  id: test
   endian: le
-  license: MIT
-  ks-version: 0.8
-
-seq:
-
-  - id: scdms_hdr
-    type: scdms_header
-
-  - id: n_triggers
-    type:
-      switch-on: scdms_hdr.format_version
-      cases:
-        1: v_one_trigger
-        2: v_two_trigger
-    repeat: expr # repeat for the number of triggers read
-    repeat-expr: scdms_hdr.total_triggers
-
-  - id: scdms_footer
-    type: trailer
-
-
+  
 enums:
-
-  headers:
-    0x9:
-      id: scdms_hdr
-    0x5:
-      id: trigger_hdr
-    0x7:
-      id: primitive_hdr
-    0x6:
-      id: prim_dcrc_hdr
-    0x3:
-      id: detector_hdr
-    0x2:
-      id: dcrc_hdr
-    0x4:
-      id: readout_hdr
-    0x0:
-      id: channel_hdr
-    0x1:
-      id: waveform_hdr
-    0x8:
-      id: trailer
 
   trigger_types:
     1:
@@ -63,8 +19,74 @@ enums:
       id: borts   # begin of run test signal
     7:
       id: eorts   # end of run test signal
+  
+seq:
+  - id: odb_hdr
+    type: u2
+  - id: unknown
+    size: 10
+  - id: odb_size
+    type: u4
+  - id: odb
+    size: odb_size
+    
+  - id: entry
+    type: entry_block
+    repeat: eos
 
 types:
+
+  entry_block:
+    seq:
+      - id: midas_hdr
+        type: midas_header
+        
+      - id: scdms_data
+        type: scdms_data_block
+        if: midas_hdr.bank_name == "SCD0"
+      - id: dmc_data
+        size: midas_hdr.bank_size
+        if: midas_hdr.bank_name == "DMC0"
+      - id: data
+        size: midas_hdr.bank_size
+        if: midas_hdr.bank_name != "SCD0" and midas_hdr.bank_name != "DMC0"
+  
+
+  midas_header:
+    seq:
+      - id: evt_id
+        type: u2
+      - id: trigger_mask
+        type: u2
+      - id: serial_number
+        type: u4
+      - id: time_stamp
+        type: u4
+      - id: evt_data_size
+        type: u4
+      - id: all_banks_size
+        type: u4
+      - id: flags
+        type: u4
+      - id: bank_name
+        type: str
+        size: 4
+        encoding: utf-8
+      - id: type
+        type: u4
+      - id: bank_size
+        type: u4
+
+  scdms_data_block:
+    seq:
+      - id: scdms_hdr
+        type: scdms_header
+      - id: trigger_blk
+        type: trigger_block
+        repeat: expr
+        repeat-expr: scdms_hdr.total_triggers
+      - id: scdms_ftr
+        type: scdms_footer
 
   scdms_header:
 
@@ -76,334 +98,383 @@ types:
 
       overall_header:
         value: ((packed & 0xf0_00_00_00) >> 28)
-        enum: headers
 
       total_triggers:
         value: (packed & 0x00_00_0f_ff)
 
       format_version:
         value: ((packed & 0x0f_ff_f0_00) >> 12)
-
-  v_one_trigger:
+  
+  trigger_block:
+    seq: 
+    - id: event_hdr
+      type: event_header
+    - id: num_primitive_hdr
+      type: num_primitive_header
+    - id: primitive_blk
+      type: primitive_block
+      repeat: expr
+      repeat-expr: num_primitive_hdr.num_primitives
+    - id: n_detectors
+      type: detectors
+    - id: detector_blk
+      type: detector_block
+      repeat: expr
+      repeat-expr: n_detectors.detectors_in_event
+    - id: sdu_primitive_hdr
+      type: sdu_primitive_header
+    - id: sdu_primitive_blk
+      type: sdu_primitive_block
+      repeat: expr
+      repeat-expr: sdu_primitive_hdr.num_sdu_primitives
+    - id: num_sdu_hdr
+      type: num_sdu_header
+    - id: sdu_blk
+      type: sdu_block
+      #if: num_sdu_hdr.num_sdu != 0
+      repeat: expr
+      repeat-expr: num_sdu_hdr.num_sdu
+  
+  event_header:
+  
     seq:
-      - id: trigger_meta
-        type: v_one_trig_meta
-
-      - id: n_primitives
-        type: primitive
-        repeat: expr # repeat for number of primitives
-        repeat-expr: trigger_meta.num_primitives
-
-      - id: packed
+      - id: packed_event_size
         type: u4
-
-      - id: n_detectors
-        type: detector
-        repeat: expr # repeat for the number of detectors
-        repeat-expr: detectors_in_event
-
-    instances:
-      detectors_in_event:
-        value: (packed & 0x0f_ff_ff_ff)
-
-      det_header:
-        value: ((packed & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-  v_two_trigger:
-    seq:
-      - id: trigger_meta
-        type: v_two_trig_meta
-
-      - id: n_primitives
-        type: primitive
-        repeat: expr # repeat for number of primitives
-        repeat-expr: trigger_meta.num_primitives
-
-      - id: packed
-        type: u4
-
-      - id: n_detectors
-        type: detector
-        repeat: expr # repeat for the number of detectors
-        repeat-expr: detectors_in_event
-
-    instances:
-      detectors_in_event:
-        value: (packed & 0x0f_ff_ff_ff)
-
-      det_header:
-        value: ((packed & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-  v_one_trig_meta:
-    seq:
-
-      - id: packed_1
-        type: u4
-
       - id: trigger_id
         type: u4
-
-      - id: trigger_type
-        type: u4
-        enum: trigger_types
-
-      - id: global_timestamp_low
-        type: u4
-
-      - id: global_timestamp_high
-        type: u4
-
-      - id: packed_2
-        type: u4
-
-      - id: length_of_entry
-        type: u4
-        doc: Length of Entry in Bytes
-
-    instances:
-      event_size:
-        value: (packed_1 & 0x0f_ff_ff_ff)
-
-      trig_header:
-        value: ((packed_1 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-      num_primitives:
-        value: (packed_2 & 0x0f_ff_ff_ff)
-
-      prim_header:
-        value: ((packed_1 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-  v_two_trig_meta:
-    seq:
-
-      - id: packed_1
-        type: u4
-
-      - id: trigger_id
-        type: u4
-
       - id: event_number
         type: u4
-
-      - id: packed_2
+      - id: packed_type
         type: u4
-
       - id: global_timestamp_low
         type: u4
-
       - id: global_timestamp_high
         type: u4
-
-      - id: packed_3
+      - id: packed_poll_end
         type: u4
-
-      - id: length_of_entry
+      - id: poll_time_fraction
         type: u4
-        doc: Length of Entry in Bytes
-
-
+        
     instances:
-
-      # Values parsed from packed_1
+    
+      # Values parsed from packed_event_size
       trig_header:
-        value: ((packed_1 & 0xf0_00_00_00) >> 28)
-        enum: headers
+        value: ((packed_event_size & 0xf0_00_00_00) >> 28)
       event_size:
-        value: (packed_1 & 0x0f_ff_ff_ff)
-
-      # Values parsed from packed_2
+        value: (packed_event_size & 0x0f_ff_ff_ff)
+        
+      # Values parsed from packed_type
       trigger_type:
-        value: (packed_2 & 0x00_00_00_0f)
+        value: (packed_type & 0x00_00_00_0f)
         enum: trigger_types
       readout_bitmask:
-        value: ((packed_2 & 0xff_ff_ff_00) >> 8)
-
-      # Values parsed from packed_3
-      num_primitives:
-        value: (packed_3 & 0x0f_ff_ff_ff)
-      prim_header:
-        value: ((packed_3 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-
-  primitive:
+        value: ((packed_type & 0xff_ff_ff_00) >> 8)
+        
+      # Values parsed from packed_poll_end
+      poll_cycle_end_time:
+        value: (packed_poll_end & 0x00_00_ff_ff)
+        
+  num_primitive_header:
     seq:
-
-      - id: packed_1
+      - id: packed_primitive_num
         type: u4
-
-      - id: ut
+      - id: entry_length
         type: u4
-
-      - id: packed_2
+      
+    instances:
+      # Values parsed from packed_primitive_num
+      num_primitives:
+        value: (packed_primitive_num & 0x0f_ff_ff_ff)
+      prim_header:
+        value: ((packed_primitive_num & 0xf0_00_00_00) >> 28)
+    
+  primitive_block:
+    seq:
+      - id: packed_primitive
         type: u4
-
+      - id: rt_issue_time
+        type: u4
+      - id: rt_run_time_fraction_packed
+        type: u4
+      - id: prim_trig_time
+        type: u2
       - id: rt_run_time
         type: u2
-      - id: trig_time
-        type: u2
-
-      - id: packed_3
+      - id: trigger_mask_packed
         type: u4
-
-      - id: peak_amplitude
-        type: u2
       - id: trig_word
         type: u2
-
-    instances:
-
-      # Values parsed from packed_1
-      index:
-        value: (packed_1 & 0x00_00_00_03)
-      det_id:
-        value: ((packed_1 & 0x00_00_03_fc) >> 2)
-      pileup:
-        value: ((packed_1 & 0x00_00_0c_00) >> 10)
-      trig_status:
-        value: ((packed_1 & 0x00_00_f0_00) >> 12)
-      prim_dcrc_header:
-        value: ((packed_1 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-      # Value parsed from packed_2
-      rt_time_fraction:
-        value: (packed_2 & 0x00_ff_ff_ff)
-
-      # Values parsed from packed_3
-      trig_time_fraction:
-        value: (packed_3 & 0x00_ff_ff_ff)
-      mask_pairs:
-        value: ((packed_3 & 0xff_00_00_00) >> 24)
-
-
-  detector:
-    seq:
-
-      - id: detector_meta
-        type: det_meta
-
-      - id: n_channels
-        type: channel
-        repeat: expr # repeat for the number of chanels
-        repeat-expr: detector_meta.num_channels_to_follow
-
-  det_meta:
-    seq:
-
-      - id: packed_1
+      - id: prim_blank
+        type: u2
+      - id: peak_amplitude
         type: u4
+    
+    instances:
+      # Values parsed from packed_primitive
+      trig_status:
+        value: ((packed_primitive & 0x00_00_f0_00) >> 12)
+      index:
+        value: (packed_primitive & 0x00_00_00_03)
+      det_id:
+        value: ((packed_primitive & 0x00_00_03_fc) >> 2)
+      pileup:
+        value: ((packed_primitive & 0x00_00_0c_00) >> 10)
+      prim_dcrc_header:
+        value: ((packed_primitive & 0xf0_00_00_00) >> 28)
+        
+      # Values parsed from rt_run_time_fraction_packed
+      rt_run_time_fraction:
+        value: (rt_run_time_fraction_packed & 0x00_ff_ff_ff)
+  
+      # Values parsed from trigger_mask_packed
+      trig_mask: 
+        value: ((trigger_mask_packed & 0xff_00_00_00) >> 24)
+      trig_time_frac: 
+        value: (trigger_mask_packed & 0x00_ff_ff_ff)
 
-      - id: dcrc0_version
+  detectors: 
+    seq:
+      - id: n_detectors_packed
+        type: u4
+        
+    instances:
+      detectors_in_event:
+        value: (n_detectors_packed & 0x0f_ff_ff_ff)
+
+      num_det_header:
+        value: ((n_detectors_packed & 0xf0_00_00_00) >> 28)
+        
+  detector_block:
+    seq:
+      - id: detector_hdr
+        type: detector_header
+      - id: readout_hdr
+        type: readout_header
+      - id: num_channels_hdr
+        type: num_channels_header
+      - id: channel_blk
+        type: channel_block
+        repeat: expr
+        repeat-expr: num_channels_hdr.num_channels
+        
+  detector_header:
+    seq:
+      - id: detector_hdr_packed
+        type: u4
+      - id: dcrc1_serial_nbr
         type: u1
-
-      - id: dcrc0_serial_num
-        type: u1
-
       - id: dcrc1_version
         type: u1
-
-      - id: dcrc1_serial_num
+      - id: dcrc2_serial_nbr
         type: u1
-
-      - id: packed_2
-        type: u4
-
-      - id: packed_3
-        type: u4
-
-      - id: packed_4
-        type: u4
-
+      - id: dcrc2_version
+        type: u1
+    
     instances:
-
-      # Values parsed from packed_1
+      detector_type:
+        value: ((detector_hdr_packed & 0x0f_ff_fc_00) >> 10)
       index:
-        value: (packed_1 & 0x00_00_00_03)
-
+        value: (detector_hdr_packed & 0x00_00_00_03)
       det_id:
-        value: ((packed_1 & 0x00_00_03_fc) >> 2)
-
-      det_type:
-        value: ((packed_1 & 0x0f_ff_fc_00) >> 10)
-
-      dcrc_header:
-        value: ((packed_1 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-      # Values parsed from packed_2
-      series_time:
-        value: (packed_2 & 0x00_00_ff_ff)
-
-      readout_status:
-        value: ((packed_2 & 0x0f_ff_00_00) >> 16)
-
-      readout_header:
-        value: ((packed_2 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-      # Values parsed from packed_3
-      series_time_fraction:
-        value: (packed_3 & 0x00_ff_ff_ff)
-
-      # Values parsed from packed_4
-      num_channels_to_follow:
-        value: (packed_4 & 0x0f_ff_ff_ff)
-
-      channel_header:
-        value: ((packed_4 & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-  channel:
+        value: ((detector_hdr_packed & 0x00_00_03_fc) >> 2)
+      detector_header:
+        value: ((detector_hdr_packed & 0xf0_00_00_00) >> 28)
+        
+  readout_header:
     seq:
-
-      - id: packed
+      - id: readout_hdr_packed_1
         type: u4
-
-      - id: n_pre_pulse_samples
-        type: u4  # 4 byte unsigned integer
-      - id: n_on_pulse_samples
+      - id: readout_hdr_packed_2
         type: u4
-      - id: n_post_pulse_samples
-        type: u4
-      - id: sample_rate_low
+      - id: waveform_read_start_time
         type: u2
-      - id: sample_rate_high
+      - id: waveform_read_end_time
+        type: u2
+      - id: waveform_read_start_time_fraction
+        type: u4
+      - id: waveform_read_end_time_fraction
+        type: u4
+        
+    instances:
+      readout_header:
+        value: ((readout_hdr_packed_1 & 0xf0_00_00_00) >> 28)
+      readout_status:
+        value: ((readout_hdr_packed_1 & 0x0f_ff_00_00) >> 16)
+      series_time:
+        value: (readout_hdr_packed_1 & 0x00_00_ff_ff)
+        
+      has_thermometry_readout:
+        value: ((readout_hdr_packed_2 & 0x10_00_00_00) >> 31)
+      series_time_fraction:
+        value: (readout_hdr_packed_2 & 0x00_00_ff_ff)
+  
+  num_channels_header:
+    seq:
+      - id: num_channels_packed
+        type: u4
+        
+    instances:
+      channels_header:
+        value: ((num_channels_packed & 0xf0_00_00_00) >> 28)
+      num_channels:
+        value: (num_channels_packed & 0x0f_ff_ff_ff)
+  
+  channel_block:
+    seq:
+      - id: channel_packed
+        type: u4
+      - id: num_pre_pulse_samples
+        type: u4
+      - id: num_on_pulse_samples
+        type: u4
+      - id: num_post_pulse_samples
+        type: u4
+      - id: sample_rate
+        type: u2
+      - id: downsample_factor
         type: u2
       - id: sample
         type: u2
         repeat: expr
-        repeat-expr: n_pre_pulse_samples + n_on_pulse_samples + n_post_pulse_samples
-
+        repeat-expr: num_pre_pulse_samples + num_on_pulse_samples + num_post_pulse_samples
+    
     instances:
-
-      ch_type:
-        value: (packed & 0x00_00_00_03)
-
-      ch_num:
-        value: ((packed & 0x00_00_00_3c) >> 2)
-
+      channel_flag:
+        value: ((channel_packed & 0xf0_00_00_00) >> 28)
       pre_trigger_offset:
-        value: ((packed & 0x0f_ff_ff_c0) >> 6)
-
-      chnl_header:
-        value: ((packed & 0xf0_00_00_00) >> 28)
-        enum: headers
-
-  trailer:
+        value: ((channel_packed & 0x0f_ff_ff_c0) >> 7)
+      channel_num:
+        value: ((channel_packed & 0x00_00_00_3c) >> 2)
+      has_baseline_control:
+        value: ((channel_packed & 0x00_00_00_02) >> 1)
+      channel_type:
+        value: (channel_packed & 0x00_00_00_01)
+        
+  sdu_primitive_header:
     seq:
-
-      - id: packed
+      - id: sdu_num_primitive_packed
         type: u4
-
+      - id: sdu_entry_length
+        type: u4
+        
     instances:
-
-      n_preceeding_triggers:
-        value: (packed & 0x0f_ff_ff_ff)
-      trailer_header:
-        value: ((packed & 0xf0_00_00_00) >> 28)
-        enum: headers
+      sdu_header:
+        value: ((sdu_num_primitive_packed & 0xf0_00_00_00) >> 28)
+      
+      num_sdu_primitives:
+        value: (sdu_num_primitive_packed & 0x07_ff_ff_ff)
+      
+      has_sdu_data:
+        value: ((sdu_num_primitive_packed & 0x01_00_00_00) >> 27)
+        
+  sdu_primitive_block:
+    seq:
+      - id: sdu_block_header
+        type: u4
+      - id: rt_issue_ut
+        type: u4
+      - id: rt_run_time_fraction_packed
+        type: u4
+      - id: trigger_time
+        type: u2
+      - id: rt_run_time
+        type: u2
+      - id: trigger_time_fraction_packed
+        type: u4
+      - id: trigger_word
+        type: u2
+      - id: blank
+        type: u4
+      - id: peak_amplitude
+        type: u2
+        
+    instances:
+      rt_run_time_fraction:
+        value: (rt_run_time_fraction_packed & 0x00_ff_ff_ff)
+      
+      trigger_time_fraction:
+        value: (trigger_time_fraction_packed & 0x00_ff_ff_ff)
+        
+  num_sdu_header:
+    seq: 
+      - id: num_sdu_packed
+        type: u4
+        
+    instances:
+      num_sdu:
+        value: (num_sdu_packed & 0x0f_ff_ff_ff)
+      num_sdu_flag:
+        value: ((num_sdu_packed & 0xf0_00_00_00) >> 28)
+          
+  sdu_block:
+    seq:
+      - id: sdu_readout_header_packed
+        type: u4
+      - id: sdu_series_time_fraction_packed
+        type: u4
+      - id: sdu_read_start_time
+        type: u2
+      - id: sdu_read_end_time
+        type: u2
+      - id: sdu_read_start_time_fraction
+        type: u4
+      - id: sdu_read_end_time_fraction
+        type: u4
+      - id: sdu_num_channels_header_packed
+        type: u4
+      - id: sdu_channel_blk
+        type: sdu_channel_block
+        repeat: expr
+        repeat-expr: num_sdu_channels
+    
+    instances:
+      sdu_readout_flag:
+        value: ((sdu_readout_header_packed & 0xf0_00_00_00) >> 28)
+      sdu_readout_status:
+        value: ((sdu_readout_header_packed & 0x0f_ff_00_00) >> 16)
+      sdu_series_time:
+        value: (sdu_readout_header_packed & 0x00_00_ff_ff)
+      sdu_series_time_fraction:
+        value: (sdu_readout_header_packed & 0x00_ff_ff_ff)
+        
+      num_sdu_channels:
+        value: (sdu_num_channels_header_packed & 0x0f_ff_ff_f)
+      num_sdu_channels_flag:
+        value: ((sdu_num_channels_header_packed & 0xf0_00_00_00) >> 28)
+        
+  sdu_channel_block:
+    seq:
+      - id: sdu_channel_header_packed
+        type: u4
+      - id: sdu_num_samples
+        type: u4
+      - id: blank
+        type: u2
+      - id: sample_rate
+        type: u2
+        doc: kHz
+      - id: sdu_channel_sample
+        type: u2
+        repeat: expr
+        repeat-expr: sdu_num_samples
+        
+    instances:
+      sdu_channel_flag:
+        value: ((sdu_channel_header_packed & 0xf0_00_00_00) >> 28)
+      sdu_pre_trigger_offset:
+        value: ((sdu_channel_header_packed & 0x0f_ff_ff_c0) >> 7)
+      sdu_channel_type:
+        value: ((sdu_channel_header_packed & 0x00_00_00_38) >> 3)
+      sdu_channel_num:
+        value: (sdu_channel_header_packed & 0x00_00_00_07)
+        
+  scdms_footer:
+    seq:
+      - id: preceeding_triggers_packed
+        type: u4
+    
+    instances:
+      preceeding_triggers_flag:
+        value: ((preceeding_triggers_packed & 0xf0_00_00_00) >> 28)
+      preceeding_triggers_num:
+        value: (preceeding_triggers_packed & 0x0f_ff_ff_ff)
