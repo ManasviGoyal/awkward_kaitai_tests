@@ -14,3 +14,9 @@ test-numpy
 
 src-lists
 test-lists
+
+src-midas
+test-midas
+
+src-pixie4e
+test-pixie4e
