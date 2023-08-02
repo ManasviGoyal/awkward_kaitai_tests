@@ -5,4 +5,4 @@
 [submodule "kaitai_struct_compiler"]
 	path = kaitai_struct_compiler
 	url = https://github.com/ManasviGoyal/kaitai_struct_compiler.git
-	branch = ManasviGoyal/awkward_target
+	branch = ManasviGoyal/kaitai_awkward_target
