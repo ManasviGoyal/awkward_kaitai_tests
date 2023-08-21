@@ -6,10 +6,33 @@
 #include "kaitai/kaitaistruct.h"
 #include <stdint.h>
 #include "build/_deps/awkward-headers-src/layout-builder/awkward/LayoutBuilder.h"
+#include <vector>
 
-#if KAITAI_STRUCT_VERSION < 9000L
-#error "Incompatible Kaitai Struct C++/STL API: version 0.9 or later is required"
-#endif
+template <class NODE, class PRIMITIVE, class LENGTH>
+void dump(std::ostringstream& out, NODE&& node, PRIMITIVE&& ptr, LENGTH&& length) {
+  out << node << ": ";
+  for (size_t i = 0; i < length; i++) {
+    out << +ptr[i] << " ";
+  }
+  out << std::endl;
+}
+
+template<class NODE, class PRIMITIVE, class LENGTH, class ... Args>
+void dump(std::ostringstream& out, NODE&& node, PRIMITIVE&& ptr, LENGTH&& length, Args&&...args)
+{
+    dump(out, node, ptr, length);
+    dump(out, args...);
+}
+
+std::map<std::string, void*>
+inline empty_buffers(std::map<std::string, size_t> &names_nbytes) {
+  std::map<std::string, void*> buffers = {};
+  for(const auto& it : names_nbytes) {
+    auto* ptr = new uint8_t[it.second];
+    buffers[it.first] = (void*)ptr;
+  }
+  return buffers;
+}
 
 using UserDefinedMap = std::map<std::size_t, std::string>;
 template<class... BUILDERS>
@@ -21,7 +44,11 @@ using ListOffsetBuilder = awkward::LayoutBuilder::ListOffset<PRIMITIVE, BUILDER>
 template<class PRIMITIVE>
 using NumpyBuilder = awkward::LayoutBuilder::Numpy<PRIMITIVE>;
 
-enum Field_numpy : std::size_t {numpy_array};
+enum Field_numpy : std::size_t {numpy_array}; 
+
+#if KAITAI_STRUCT_VERSION < 9000L
+#error "Incompatible Kaitai Struct C++/STL API: version 0.9 or later is required"
+#endif
 
 class numpy_t : public kaitai::kstruct {
 
@@ -37,18 +64,18 @@ public:
     ~numpy_t();
 
 private:
-    uint32_t m_numpy_array;
+    std::vector<uint32_t>* m_numpy_array;
     numpy_t* m__root;
     kaitai::kstruct* m__parent;
-    RecordBuilder<
-        RecordField<Field_numpy::numpy_array, NumpyBuilder<uint32_t>
-        >
-    > m_numpy_builder;
 
 public:
-    uint32_t numpy_array() const { return m_numpy_array; }
+    std::vector<uint32_t>* numpy_array() const { return m_numpy_array; }
     numpy_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
+    RecordBuilder<
+        RecordField<Field_numpy::numpy_array, ListOffsetBuilder<int64_t, NumpyBuilder<uint32_t>>>
+    > numpy_builder;
+
 };
 
 #endif  // NUMPY_H_
