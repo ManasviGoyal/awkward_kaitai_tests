@@ -22,13 +22,14 @@ numpy_t::numpy_t(kaitai::kstream* p__io, kaitai::kstruct* p__parent, numpy_t* p_
 void numpy_t::_read() {
     m_numpy_array = new std::vector<uint32_t>();
     {
-        auto& sub_numpy_array_builder = numpy_builder.content<Field_numpy::numpy_array>();
+        auto& sub_numpy_builder = numpy_builder.content<Field_numpy::numpy_array>();
         int i = 0;
         while (!m__io->is_eof()) {
-            auto& numpy_array_builder = sub_numpy_array_builder.begin_list();
+            sub_numpy_builder.begin_list();
             m_numpy_array->push_back(m__io->read_u4le());
+            auto& numpy_array_builder = sub_numpy_builder.content();
             numpy_array_builder.append(m_numpy_array->at(m_numpy_array->size() - 1));
-            sub_numpy_array_builder.end_list();
+            sub_numpy_builder.end_list();
             i++;
         }
     }

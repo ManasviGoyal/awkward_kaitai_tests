@@ -67,15 +67,14 @@ private:
     std::vector<uint32_t>* m_numpy_array;
     numpy_t* m__root;
     kaitai::kstruct* m__parent;
+    RecordBuilder<
+        RecordField<Field_numpy::numpy_array, ListOffsetBuilder<int64_t, NumpyBuilder<uint32_t>>>
+    > numpy_builder;
 
 public:
     std::vector<uint32_t>* numpy_array() const { return m_numpy_array; }
     numpy_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
-    RecordBuilder<
-        RecordField<Field_numpy::numpy_array, ListOffsetBuilder<int64_t, NumpyBuilder<uint32_t>>>
-    > numpy_builder;
-
 };
 
 #endif  // NUMPY_H_
